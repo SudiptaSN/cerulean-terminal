@@ -120,7 +120,7 @@
             color: #0f5132;
         }
 
-        /* Hide scrollbar for a cleaner look */
+        /* Hide scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb { background: #0f5132; }
@@ -145,6 +145,7 @@
         let stage = 0;
         let strikes = 0;
         let locked = true;
+        let previousValue = ""; // Tracks the input to block mobile backspace
 
         const BOOT_SEQUENCE = [
             "SYSTEM WAKE...",
@@ -152,7 +153,7 @@
             "INITIATING MONROE PROTOCOL...",
             "WARNING: BACKSPACE KEY HAS BEEN DISABLED VIA HARDWARE OVERRIDE. PRECISION IS REQUIRED.",
             " ",
-            "> SYSTEM ENCRYPTED. ENTER THE MASTER PASSWORD?"
+            "> SYSTEM ENCRYPTED. ENTER THE MASTER PASSWORD"
         ];
 
         function printLine(text) {
@@ -168,6 +169,7 @@
             inputField.disabled = true;
             inputField.placeholder = "PROCESSING...";
             outputDiv.innerHTML = "";
+            previousValue = "";
             
             let delay = 0;
             BOOT_SEQUENCE.forEach((line, index) => {
@@ -214,10 +216,22 @@
             if (!locked) inputField.focus();
         });
 
-        // The Sadistic No-Backspace Rule
+        // MULTI-PLATFORM BACKSPACE BLOCKER
+        // 1. Desktop Blocker (Prevents physical keyboard backspace)
         inputField.addEventListener('keydown', (e) => {
             if (e.key === 'Backspace' || e.key === 'Delete') {
                 e.preventDefault();
+            }
+        });
+
+        // 2. Mobile Blocker (Prevents software keyboard deletion)
+        inputField.addEventListener('input', (e) => {
+            if (inputField.value.length < previousValue.length) {
+                // If they tried to delete, force it back to the previous text instantly
+                inputField.value = previousValue;
+            } else {
+                // If they typed a new character, update the tracker
+                previousValue = inputField.value;
             }
         });
 
@@ -227,6 +241,7 @@
 
             const command = inputField.value;
             inputField.value = '';
+            previousValue = ''; // Reset tracker for the next line
             
             // TIER 1: Master Password (SudiptaSN - Case Sensitive)
             if (stage === 0) {
@@ -287,7 +302,7 @@
                         printLine(" ");
                         
                         // UPDATE THIS NEXT LINE WITH THE REAL LOCATION
-                        printLine("CLASSIFIED ASSET LOCATION: SAFE AND SOUND UNDER THE SUPERVISION OF YOUR MOM");
+                        printLine("CLASSIFIED ASSET LOCATION: BELOW THE FRIDGE");
                         
                         printLine("=========================================");
                         printLine("HAPPY BIRTHDAY.");
