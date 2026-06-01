@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation Cerulean</title>
+    <style>
+        :root {
+            --term-green: #22c55e;
+            --term-glow: rgba(34, 197, 94, 0.5);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            color: var(--term-green);
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            font-size: 16px;
+        }
+
+        /* CRT Effects */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+        @keyframes flicker {
+            0% { opacity: 0.95; }
+            5% { opacity: 0.85; }
+            10% { opacity: 0.95; }
+            15% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+
+        .crt-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+            animation: flicker 0.15s infinite;
+        }
+
+        .crt-container::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .scanline {
+            width: 100%;
+            height: 100px;
+            z-index: 3;
+            position: absolute;
+            top: 0; left: 0;
+            pointer-events: none;
+            background: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(34,197,94,0.1) 50%, rgba(0,0,0,0) 100%);
+            animation: scanline 6s linear infinite;
+        }
+
+        /* Terminal Layout */
+        #output {
+            flex-grow: 1;
+            overflow-y: auto;
+            z-index: 10;
+            padding-bottom: 20px;
+            white-space: pre-wrap;
+            text-shadow: 0 0 5px var(--term-glow);
+            word-break: break-all;
+        }
+
+        .line {
+            min-height: 1.5rem;
+            margin-top: 4px;
+            letter-spacing: 1px;
+        }
+
+        form {
+            display: flex;
+            align-items: center;
+            border-top: 1px solid #0f5132;
+            padding-top: 15px;
+            z-index: 10;
+        }
+
+        .prompt-symbol {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--term-green);
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            font-weight: bold;
+            flex-grow: 1;
+            text-shadow: 0 0 5px var(--term-glow);
+            letter-spacing: 2px;
+        }
+
+        input:disabled {
+            opacity: 0.5;
+        }
+
+        input::placeholder {
+            color: #0f5132;
+        }
+
+        /* Hide scrollbar for a cleaner look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #0f5132; }
+    </style>
+</head>
+<body>
+
+    <div class="crt-container">
+        <div class="scanline"></div>
+        <div id="output"></div>
+        <form id="cmdForm">
+            <span class="prompt-symbol">&gt;</span>
+            <input type="text" id="cmdInput" autocomplete="off" spellcheck="false" autofocus disabled placeholder="PROCESSING...">
+        </form>
+    </div>
+
+    <script>
+        const outputDiv = document.getElementById('output');
+        const form = document.getElementById('cmdForm');
+        const inputField = document.getElementById('cmdInput');
+
+        let stage = 0;
+        let strikes = 0;
+        let locked = true;
+
+        const BOOT_SEQUENCE = [
+            "SYSTEM WAKE...",
+            "UNAUTHORIZED ACCESS DETECTED.",
+            "INITIATING MONROE PROTOCOL...",
+            "WARNING: BACKSPACE KEY HAS BEEN DISABLED VIA HARDWARE OVERRIDE. PRECISION IS REQUIRED.",
+            " ",
+            "> SYSTEM ENCRYPTED. WHAT IS THE TRUE NAME OF UNKNOWN SUBJECT ONE?"
+        ];
+
+        function printLine(text) {
+            const div = document.createElement('div');
+            div.className = 'line';
+            div.textContent = text;
+            outputDiv.appendChild(div);
+            outputDiv.scrollTop = outputDiv.scrollHeight;
+        }
+
+        function runBootSequence(delayMs = 800) {
+            locked = true;
+            inputField.disabled = true;
+            inputField.placeholder = "PROCESSING...";
+            outputDiv.innerHTML = "";
+            
+            let delay = 0;
+            BOOT_SEQUENCE.forEach((line, index) => {
+                setTimeout(() => {
+                    printLine(line);
+                    if (index === BOOT_SEQUENCE.length - 1) {
+                        locked = false;
+                        inputField.disabled = false;
+                        inputField.placeholder = "";
+                        inputField.focus();
+                    }
+                }, delay);
+                delay += delayMs;
+            });
+        }
+
+        function resetSystem() {
+            printLine("CRITICAL ERROR: MAXIMUM FAILURES REACHED.");
+            printLine("WIPING MEMORY BANKS...");
+            printLine("REBOOTING...");
+            setTimeout(() => {
+                stage = 0;
+                strikes = 0;
+                runBootSequence(600); // Faster reboot
+            }, 3000);
+        }
+
+        function handleWrongAnswer(command) {
+            strikes++;
+            if (strikes >= 3) {
+                locked = true;
+                inputField.disabled = true;
+                printLine(`> ${command}`);
+                printLine(`ACCESS DENIED. STRIKE 3/3.`);
+                setTimeout(resetSystem, 1500);
+            } else {
+                printLine(`> ${command}`);
+                printLine(`ACCESS DENIED. STRIKE ${strikes}/3.`);
+            }
+        }
+
+        // Keep focus on the input naturally
+        document.addEventListener('click', () => {
+            if (!locked) inputField.focus();
+        });
+
+        // The Sadistic No-Backspace Rule
+        inputField.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault();
+            }
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (locked || !inputField.value) return;
+
+            const command = inputField.value;
+            inputField.value = '';
+            
+            // TIER 1: Master Password (SudiptaSN - Case Sensitive)
+            if (stage === 0) {
+                if (command === "SudiptaSN") {
+                    printLine(`> ${command}`);
+                    printLine("IDENTITY VERIFIED.");
+                    printLine(" ");
+                    printLine("> AUDITING INITIATION PROTOCOL... ENTER THE EXACT VOLUME LABEL OF THE PHASE 1 FLASH DRIVE:");
+                    stage = 1;
+                } else {
+                    handleWrongAnswer(command);
+                }
+            }
+            // TIER 2: Timeline Audit
+            else if (stage === 1) {
+                if (command.toUpperCase() === "UNSUB_01") {
+                    printLine(`> ${command}`);
+                    printLine("AUDIT PASSED.");
+                    printLine(" ");
+                    printLine("> VERIFY THE TEMPORAL BYPASS CODE GIVEN TO THE FLESH-AND-BLOOD GUARDIAN:");
+                    stage = 2;
+                } else {
+                    handleWrongAnswer(command);
+                }
+            }
+            // TIER 3: Guardian's Echo
+            else if (stage === 2) {
+                if (command === "2019") {
+                    printLine(`> ${command}`);
+                    printLine("GUARDIAN VERIFIED.");
+                    printLine(" ");
+                    printLine("> UPLOAD THE 4-PART PHYSICAL PAYLOAD... IN STRICT REVERSE CHRONOLOGICAL ORDER OF IGNITION:");
+                    stage = 3;
+                } else {
+                    handleWrongAnswer(command);
+                }
+            }
+            // TIER 4 & 5: Payload Reversal
+            else if (stage === 3) {
+                if (command === "2937") {
+                    locked = true;
+                    inputField.disabled = true;
+                    inputField.placeholder = "";
+                    printLine(`> ${command}`);
+                    printLine("PAYLOAD ACCEPTED. DECRYPTING MASTER FILE...");
+                    
+                    setTimeout(() => printLine("[||        ] 24% - BYPASSING KERNEL..."), 1500);
+                    setTimeout(() => printLine("[||||||    ] 68% - EXTRACTING ASSET..."), 3000);
+                    setTimeout(() => printLine("[||||||||||] 99% - FINALIZING..."), 4500);
+                    
+                    setTimeout(() => printLine("ERROR: INTEGRITY CHECK TIMEOUT. FATAL EXCEPTION."), 8000);
+                    
+                    setTimeout(() => {
+                        printLine(" ");
+                        printLine("OVERRIDE SUCCESSFUL.");
+                        printLine("=========================================");
+                        printLine("OPERATION CERULEAN COMPLETE. YOU SURVIVED.");
+                        printLine(" ");
+                        
+                        // UPDATE THIS NEXT LINE WITH THE REAL LOCATION
+                        printLine("CLASSIFIED ASSET LOCATION: SAFE AND SOUND UNDER THE SUPERVISION OF YOUR MOM");
+                        
+                        printLine("=========================================");
+                        printLine("HAPPY BIRTHDAY.");
+                    }, 11000);
+
+                } else {
+                    handleWrongAnswer(command);
+                }
+            }
+        });
+
+        // Start the engine
+        window.onload = () => runBootSequence();
+
+    </script>
+</body>
+</html>
